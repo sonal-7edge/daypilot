@@ -10,7 +10,8 @@ SERVER="https://daypilot-1hr8.onrender.com"
 TODAY=$(date +%Y-%m-%d)
 NOW=$(date +%H:%M)
 
-ACCOUNTS="CLOUD_NATIVE_ENG_OPEX!CUST_ORDO_Billable!CUST_ORDO_Non_Billable!INT-AI-TP!INT-ORG-COMMUNITY-INITIATIVE!INT-ORG-INNOVATION-TIME!7EDGE_OPEX"
+# Keys must match exactly what Tempo has — CUST_ORDO = Billable, OPEX = 7EDGE_OPEX
+ACCOUNTS="CLOUD_NATIVE_ENG_OPEX!CUST_ORDO!CUST_ORDO_Non_Billable!INT-AI-TP!INT-ORG-COMMUNITY-INITIATIVE!INT-ORG-INNOVATION-TIME!OPEX"
 
 # ── Step 1: Pick mode ────────────────────────────────────────────────────────
 yad \

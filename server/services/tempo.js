@@ -17,14 +17,17 @@ async function getWorklogs(from, to) {
 }
 
 // Log time on an issue
-async function logTime({ issueKey, timeSpentSeconds, startDate, startTime = '09:00:00', description = '' }) {
+// issueId: numeric Jira issue ID (required by Tempo v4)
+// account: Tempo account key e.g. "INT-AI-TP" (required work attribute)
+async function logTime({ issueId, timeSpentSeconds, startDate, startTime = '09:00:00', description = '', account = '' }) {
   const res = await tempoClient.post('/worklogs', {
-    issueKey,
+    issueId: parseInt(issueId),
     timeSpentSeconds,
     startDate,
     startTime,
     description,
     authorAccountId: process.env.TEMPO_ACCOUNT_ID,
+    attributes: [{ key: '_Account_', value: account }],
   });
   return res.data;
 }

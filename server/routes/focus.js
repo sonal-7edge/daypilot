@@ -53,11 +53,12 @@ router.post('/log', async (req, res) => {
       await Promise.all(toDelete.map(log => tempo.deleteWorklog(log.tempoWorklogId)));
 
       await tempo.logTime({
-        issueKey: jiraKey,
+        issueId: issue.id,
         timeSpentSeconds,
         startDate,
         startTime: startTimePart,
-        description: [`Focus session — ${durationLabel}`, account ? `Account: ${account}` : ''].filter(Boolean).join(' | '),
+        description: `Focus session — ${durationLabel}`,
+        account,
       });
     }
 

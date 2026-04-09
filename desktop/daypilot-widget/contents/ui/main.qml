@@ -9,7 +9,7 @@ Item {
     width: 360
     height: 420
 
-    property string serverUrl: "https://your-daypilot-app.onrender.com"
+    property string serverUrl: "https://daypilot-1hr8.onrender.com"
     property var roomData: []
 
     ColumnLayout {

@@ -1,0 +1,11 @@
+{
+    "KPlugin": {
+        "Name": "Daypilot",
+        "Description": "Quick-add calendar events and focus blocks",
+        "Icon": "view-calendar-day",
+        "Id": "com.daypilot.widget",
+        "Version": "1.0",
+        "Category": "Utilities",
+        "ServiceTypes": ["Plasma/Applet"]
+    }
+}

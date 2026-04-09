@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const cal = require('../services/googleCalendar');
 const { getIssue, buildEventDescription } = require('../services/jira');
-
 // GET /api/calendar/events?date=2025-04-09
 router.get('/events', async (req, res) => {
   try {
@@ -20,6 +19,17 @@ router.get('/events', async (req, res) => {
 router.get('/rooms', async (req, res) => {
   try {
     const rooms = await cal.listRooms();
+    res.json(rooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/calendar/available-rooms?start=...&end=...
+router.get('/available-rooms', async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    const rooms = await cal.getAvailableRooms(start, end);
     res.json(rooms);
   } catch (err) {
     res.status(500).json({ error: err.message });

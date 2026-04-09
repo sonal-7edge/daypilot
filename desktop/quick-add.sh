@@ -52,16 +52,16 @@ for i in json.load(sys.stdin):
     --button="Log:0" \
     --button="Cancel:1" \
     --center --width=420 --borders=16 \
-    --separator="|")
+    --separator=$'\t')
 
   [ $? -ne 0 ] && exit 0
 
-  CARD=$(echo "$RESULT"    | cut -d'|' -f1)
-  DATE=$(echo "$RESULT"    | cut -d'|' -f2)
-  START=$(echo "$RESULT"   | cut -d'|' -f3)
-  HOURS=$(echo "$RESULT"   | cut -d'|' -f4)
-  MINUTES=$(echo "$RESULT" | cut -d'|' -f5)
-  ACCOUNT=$(echo "$RESULT" | cut -d'|' -f6)
+  CARD=$(echo "$RESULT"    | cut -f1)
+  DATE=$(echo "$RESULT"    | cut -f2)
+  START=$(echo "$RESULT"   | cut -f3)
+  HOURS=$(echo "$RESULT"   | cut -f4)
+  MINUTES=$(echo "$RESULT" | cut -f5)
+  ACCOUNT=$(echo "$RESULT" | cut -f6)
 
   # Extract Jira key from "ZZ-3427 — Title"
   JIRA_KEY=$(echo "$CARD" | awk '{print $1}')
@@ -102,43 +102,56 @@ fi
 
 # ── MEETING ──────────────────────────────────────────────────────────────────
 
-# Fetch rooms (hardcoded fallback if Admin SDK unavailable)
-ROOMS_JSON=$(curl -sf "$SERVER/api/calendar/rooms" 2>/dev/null)
+# Fetch all 7edge users for attendee picker (can run in background while user fills form)
+USERS_JSON=$(curl -sf "$SERVER/api/jira/users" 2>/dev/null)
+
+# Step 1: Time slot first — needed to check room availability
+TIME_RESULT=$(yad \
+  --title="Daypilot \u2014 New Meeting" \
+  --form \
+  --field="Date"           "$TODAY" \
+  --field="Start (HH:MM)"  "09:00" \
+  --field="End (HH:MM)"    "10:00" \
+  --button="Check Rooms:0" \
+  --button="Cancel:1" \
+  --center --width=320 --borders=16 \
+  --separator=$'\t')
+
+[ $? -ne 0 ] && exit 0
+
+DATE=$(echo "$TIME_RESULT"  | cut -f1)
+START=$(echo "$TIME_RESULT" | cut -f2)
+END=$(echo "$TIME_RESULT"   | cut -f3)
+
+# Step 2: Fetch available rooms for that slot
+ROOMS_JSON=$(curl -sf "$SERVER/api/calendar/available-rooms?start=${DATE}T${START}:00%2B05:30&end=${DATE}T${END}:00%2B05:30" 2>/dev/null)
 ROOM_NAMES="No room"
 if [ -n "$ROOMS_JSON" ]; then
   NAMES=$(echo "$ROOMS_JSON" | python3 -c "
 import sys, json
-for r in json.load(sys.stdin):
+rooms = json.load(sys.stdin)
+for r in rooms:
     print(r.get('resourceName',''))" 2>/dev/null)
-  [ -n "$NAMES" ] && ROOM_NAMES="No room!$(echo "$NAMES" | tr '\n' '!')"
+  [ -n "$NAMES" ] && ROOM_NAMES="No room!$(echo "$NAMES" | tr '\n' '!')" || ROOM_NAMES="No room (all busy)"
 fi
 
-# Fetch all 7edge users for attendee picker
-USERS_JSON=$(curl -sf "$SERVER/api/jira/users" 2>/dev/null)
-
-# Step 1: Meeting details form
+# Step 3: Full meeting details with available rooms
 RESULT=$(yad \
   --title="Daypilot \u2014 New Meeting" \
   --form \
   --field="Jira key (optional)" "" \
   --field="Title" "" \
-  --field="Date" "$TODAY" \
-  --field="Start (HH:MM)" "09:00" \
-  --field="End (HH:MM)" "10:00" \
   --field="Room:CBE" "$ROOM_NAMES" \
   --button="Next \u2192 Add People:0" \
   --button="Cancel:1" \
   --center --width=420 --borders=16 \
-  --separator="|")
+  --separator=$'\t')
 
 [ $? -ne 0 ] && exit 0
 
-JIRA_KEY=$(echo "$RESULT" | cut -d'|' -f1)
-TITLE=$(echo "$RESULT"    | cut -d'|' -f2)
-DATE=$(echo "$RESULT"     | cut -d'|' -f3)
-START=$(echo "$RESULT"    | cut -d'|' -f4)
-END=$(echo "$RESULT"      | cut -d'|' -f5)
-ROOM_NAME=$(echo "$RESULT"| cut -d'|' -f6)
+JIRA_KEY=$(echo "$RESULT" | cut -f1)
+TITLE=$(echo "$RESULT"    | cut -f2)
+ROOM_NAME=$(echo "$RESULT"| cut -f3)
 
 # Step 2: People picker
 ATTENDEE_EMAILS=""

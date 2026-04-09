@@ -29,13 +29,19 @@ async function listEvents(timeMin, timeMax) {
 // Create an event
 async function createEvent({ title, description, start, end, attendees = [], roomResourceEmail }) {
   const calendar = getCalendar();
+  const organizerEmail = process.env.JIRA_EMAIL;
+
+  // Build deduplicated attendee list — always include the organizer
+  const allEmails = new Set([organizerEmail, ...attendees].filter(Boolean));
+  const attendeeList = Array.from(allEmails).map(email => ({ email }));
+
   const event = {
     summary: title,
     description,
     start: { dateTime: start, timeZone: 'Asia/Kolkata' },
     end: { dateTime: end, timeZone: 'Asia/Kolkata' },
     attendees: [
-      ...attendees.map(email => ({ email })),
+      ...attendeeList,
       ...(roomResourceEmail ? [{ email: roomResourceEmail, resource: true }] : []),
     ],
   };
@@ -59,12 +65,25 @@ async function updateEvent(eventId, updates) {
   return res.data;
 }
 
-// Known rooms — fallback when Admin SDK is not enabled
-const KNOWN_ROOMS = [
-  { resourceName: 'Delta House-5-Station A-1F (3)',  resourceEmail: 'c_188erqtkqj6jqj8tj4ahv55p3s8ug@resource.calendar.google.com' },
-  { resourceName: 'Delta House-5-Station B-2E (6)',  resourceEmail: 'c_1888177qln1fajlmig5q6ts826ppc@resource.calendar.google.com' },
-  { resourceName: 'Delta House-5-Station A-1G (12)', resourceEmail: 'c_1881ss10pvkpahgil9qq4b2pooolo@resource.calendar.google.com' },
-];
+// Discover all rooms from the user's calendarList (includes all subscribed room resources)
+let roomCache = null;
+let roomCacheTime = 0;
+
+async function discoverRooms() {
+  const now = Date.now();
+  if (roomCache && now - roomCacheTime < 3600000) return roomCache; // 1h cache
+
+  const calendar = getCalendar();
+  const res = await calendar.calendarList.list({ maxResults: 250 });
+
+  roomCache = (res.data.items || [])
+    .filter(c => c.id.endsWith('@resource.calendar.google.com'))
+    .map(c => ({ resourceName: c.summary, resourceEmail: c.id }))
+    .sort((a, b) => a.resourceName.localeCompare(b.resourceName));
+
+  roomCacheTime = now;
+  return roomCache;
+}
 
 // List available calendar resources (meeting rooms)
 async function listRooms() {
@@ -73,8 +92,28 @@ async function listRooms() {
     const res = await admin.resources.calendars.list({ customer: 'my_customer' });
     return res.data.items || [];
   } catch {
-    return KNOWN_ROOMS;
+    return discoverRooms();
   }
+}
+
+// Return only rooms that are free during the given time window
+async function getAvailableRooms(start, end) {
+  const calendar = getCalendar();
+  const rooms = await discoverRooms();
+  if (!rooms.length) return [];
+
+  const res = await calendar.freebusy.query({
+    requestBody: {
+      timeMin: start,
+      timeMax: end,
+      items: rooms.map(r => ({ id: r.resourceEmail })),
+    },
+  });
+  const busyMap = res.data.calendars;
+  return rooms.filter(room => {
+    const cal = busyMap[room.resourceEmail];
+    return !cal?.errors?.length && (!cal?.busy || cal.busy.length === 0);
+  });
 }
 
 // Block focus time
@@ -87,4 +126,4 @@ async function blockFocusTime({ title = 'Focus Time', start, end }) {
   });
 }
 
-module.exports = { listEvents, createEvent, updateEvent, listRooms, blockFocusTime };
+module.exports = { listEvents, createEvent, updateEvent, listRooms, getAvailableRooms, blockFocusTime };

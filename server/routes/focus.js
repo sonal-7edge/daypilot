@@ -14,7 +14,12 @@ router.post('/log', async (req, res) => {
     const { jiraKey, startTime, durationHours = 1, durationMinutes = 0, account } = req.body;
 
     const timeSpentSeconds = (parseInt(durationHours) * 3600) + (parseInt(durationMinutes) * 60);
-    const endTime = new Date(new Date(startTime).getTime() + timeSpentSeconds * 1000).toISOString();
+
+    const parsedStart = new Date(startTime);
+    if (isNaN(parsedStart.getTime())) {
+      return res.status(400).json({ error: `Invalid startTime received: "${startTime}"` });
+    }
+    const endTime = new Date(parsedStart.getTime() + timeSpentSeconds * 1000).toISOString();
 
     const durationLabel = [
       parseInt(durationHours) > 0 ? `${durationHours}h` : '',

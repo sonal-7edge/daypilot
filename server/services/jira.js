@@ -12,12 +12,10 @@ const jiraClient = axios.create({
 // Get issues assigned to me (in progress or done this sprint)
 async function getMyIssues() {
   const jql = `assignee = currentUser() AND sprint in openSprints() ORDER BY updated DESC`;
-  const res = await jiraClient.get('/search', {
-    params: {
-      jql,
-      fields: 'summary,status,priority,timespent,timeoriginalestimate,worklog,parent,issuetype',
-      maxResults: 50,
-    },
+  const res = await jiraClient.post('/search/jql', {
+    jql,
+    fields: ['summary', 'status', 'priority', 'timespent', 'timeoriginalestimate', 'worklog', 'parent', 'issuetype'],
+    maxResults: 50,
   });
   return res.data.issues;
 }

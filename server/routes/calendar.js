@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const cal = require('../services/googleCalendar');
 const { getIssue, buildEventDescription } = require('../services/jira');
+const tempo = require('../services/tempo');
 // GET /api/calendar/events?date=2025-04-09
 router.get('/events', async (req, res) => {
   try {
@@ -37,22 +38,46 @@ router.get('/available-rooms', async (req, res) => {
 });
 
 // POST /api/calendar/event
-// Body: { title, start, end, attendees, roomResourceEmail, description, jiraKey }
+// Body: { title, start, end, attendees, roomResourceEmail, description, jiraKey, account }
 router.post('/event', async (req, res) => {
   try {
-    let { title, start, end, attendees, roomResourceEmail, description, jiraKey } = req.body;
+    let { title, start, end, attendees, roomResourceEmail, description, jiraKey, account } = req.body;
 
-    // If a Jira key is given, enrich the description automatically
+    let issue = null;
     if (jiraKey) {
-      const issue = await getIssue(jiraKey);
+      issue = await getIssue(jiraKey);
       if (!title) title = `[${issue.key}] ${issue.fields.summary}`;
       description = buildEventDescription(issue) + (description ? `\n\n${description}` : '');
     }
 
+    if (account) description = (description ? description + '\n' : '') + `Account: ${account}`;
+
     const event = await cal.createEvent({ title, description, start, end, attendees, roomResourceEmail });
+
+    // Log to Tempo if jiraKey + account provided
+    if (jiraKey && account && issue) {
+      const startDate = start.substring(0, 10);
+      const startTimePart = start.match(/T(\d{2}:\d{2}:\d{2})/)?.[1] || '09:00:00';
+      const timeSpentSeconds = Math.round((new Date(end) - new Date(start)) / 1000);
+
+      const existing = await tempo.getWorklogs(startDate, startDate);
+      const toDelete = existing.filter(log => log.issue?.key === jiraKey);
+      await Promise.all(toDelete.map(log => tempo.deleteWorklog(log.tempoWorklogId)));
+
+      await tempo.logTime({
+        issueId: issue.id,
+        timeSpentSeconds,
+        startDate,
+        startTime: startTimePart,
+        description: `Meeting — ${title}`,
+        account,
+      });
+    }
+
     res.json(event);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const detail = err.response?.data || err.message;
+    res.status(500).json({ error: typeof detail === 'string' ? detail : JSON.stringify(detail) });
   }
 });
 

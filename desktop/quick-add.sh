@@ -41,7 +41,7 @@ for i in json.load(sys.stdin):
   fi
 
   RESULT=$(yad \
-    --title="Daypilot \u2014 Log Focus Time" \
+    --title="Daypilot Log Focus Time" \
     --form \
     --field="Card:CBE"       "$CARD_LIST" \
     --field="Date"           "$TODAY" \
@@ -93,7 +93,7 @@ print(json.dumps(p))")
       --button="OK:0" --center --width=300 --borders=16 --timeout=3
   else
     ERROR_MSG=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error','Unknown error'))" 2>/dev/null || echo "$RESPONSE")
-    yad --error --title="Daypilot \u2014 Error" \
+    yad --error --title="Daypilot Error" \
       --text="Failed to log focus time.\n\n<tt>$ERROR_MSG</tt>\n\n<small>Payload: $PAYLOAD</small>" \
       --button="OK:0" --center --width=420 --borders=16
   fi
@@ -107,7 +107,7 @@ USERS_JSON=$(curl -sf "$SERVER/api/jira/users" 2>/dev/null)
 
 # Step 1: Time slot first — needed to check room availability
 TIME_RESULT=$(yad \
-  --title="Daypilot \u2014 New Meeting" \
+  --title="Daypilot New Meeting" \
   --form \
   --field="Date"           "$TODAY" \
   --field="Start (HH:MM)"  "09:00" \
@@ -141,7 +141,8 @@ RESULT=$(yad \
   --form \
   --field="Jira key (optional)" "" \
   --field="Title" "" \
-  --field="Room:CBE" "$ROOM_NAMES" \
+  --field="Room:CBE"     "$ROOM_NAMES" \
+  --field="Account:CBE"  "$ACCOUNTS" \
   --button="Next \u2192 Add People:0" \
   --button="Cancel:1" \
   --center --width=420 --borders=16 \
@@ -149,9 +150,10 @@ RESULT=$(yad \
 
 [ $? -ne 0 ] && exit 0
 
-JIRA_KEY=$(echo "$RESULT" | cut -f1)
-TITLE=$(echo "$RESULT"    | cut -f2)
-ROOM_NAME=$(echo "$RESULT"| cut -f3)
+JIRA_KEY=$(echo "$RESULT"  | cut -f1)
+TITLE=$(echo "$RESULT"     | cut -f2)
+ROOM_NAME=$(echo "$RESULT" | cut -f3)
+MTG_ACCOUNT=$(echo "$RESULT" | cut -f4)
 
 # Step 2: People picker
 ATTENDEE_EMAILS=""
@@ -173,7 +175,7 @@ for u in json.load(sys.stdin):
       --column="Email" \
       --print-column=3 \
       --separator="," \
-      --title="Daypilot \u2014 Add People" \
+      --title="Daypilot Add People" \
       --text="Select attendees:" \
       --button="Add:0" \
       --button="Skip:1" \
@@ -203,10 +205,11 @@ p = {
   'start': '${DATE}T${START}:00+05:30',
   'end':   '${DATE}T${END}:00+05:30',
 }
-if '$JIRA_KEY':        p['jiraKey'] = '$JIRA_KEY'
-if '$ROOM_EMAIL':      p['roomResourceEmail'] = '$ROOM_EMAIL'
+if '$JIRA_KEY':    p['jiraKey'] = '$JIRA_KEY'
+if '$ROOM_EMAIL':  p['roomResourceEmail'] = '$ROOM_EMAIL'
+if '$MTG_ACCOUNT': p['account'] = '$MTG_ACCOUNT'
 emails = [e.strip() for e in '$ATTENDEE_EMAILS'.split(',') if e.strip()]
-if emails:             p['attendees'] = emails
+if emails:         p['attendees'] = emails
 print(json.dumps(p))")
 
 RESPONSE=$(curl -sf -X POST \

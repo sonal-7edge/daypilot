@@ -31,9 +31,12 @@ async function createEvent({ title, description, start, end, attendees = [], roo
   const calendar = getCalendar();
   const organizerEmail = process.env.JIRA_EMAIL;
 
-  // Build deduplicated attendee list — always include the organizer
+  // Build deduplicated attendee list — organizer is always accepted
   const allEmails = new Set([organizerEmail, ...attendees].filter(Boolean));
-  const attendeeList = Array.from(allEmails).map(email => ({ email }));
+  const attendeeList = Array.from(allEmails).map(email => ({
+    email,
+    responseStatus: email === organizerEmail ? 'accepted' : 'needsAction',
+  }));
 
   const event = {
     summary: title,

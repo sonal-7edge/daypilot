@@ -20,6 +20,28 @@ async function getMyIssues() {
   return res.data.issues;
 }
 
+// Get active issues assigned to me — for focus block dropdown
+async function getActiveIssues() {
+  const jql = `assignee = currentUser() AND status in ("In Progress", "QA", "In Review", "Testing") ORDER BY updated DESC`;
+  const res = await jiraClient.post('/search/jql', {
+    jql,
+    fields: ['summary', 'status', 'parent', 'issuetype'],
+    maxResults: 50,
+  });
+  return res.data.issues;
+}
+
+// Get all 7edge users — for meeting attendee picker
+async function getUsers() {
+  const res = await jiraClient.get('/users/search', {
+    params: { query: '', maxResults: 200 },
+  });
+  return res.data
+    .filter(u => u.emailAddress && u.emailAddress.includes('@7edge.com') && u.active)
+    .map(u => ({ displayName: u.displayName, email: u.emailAddress }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 // Get a single issue by key e.g. AUTH-123
 async function getIssue(issueKey) {
   const res = await jiraClient.get(`/issue/${issueKey}`, {
@@ -49,4 +71,4 @@ function buildEventDescription(issue) {
   ].filter(Boolean).join('\n');
 }
 
-module.exports = { getMyIssues, getIssue, getWorklogs, buildEventDescription };
+module.exports = { getMyIssues, getActiveIssues, getUsers, getIssue, getWorklogs, buildEventDescription };

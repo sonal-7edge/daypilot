@@ -59,13 +59,22 @@ async function updateEvent(eventId, updates) {
   return res.data;
 }
 
+// Known rooms — fallback when Admin SDK is not enabled
+const KNOWN_ROOMS = [
+  { resourceName: 'Delta House-5-Station A-1F (3)',  resourceEmail: 'c_188erqtkqj6jqj8tj4ahv55p3s8ug@resource.calendar.google.com' },
+  { resourceName: 'Delta House-5-Station B-2E (6)',  resourceEmail: 'c_1888177qln1fajlmig5q6ts826ppc@resource.calendar.google.com' },
+  { resourceName: 'Delta House-5-Station A-1G (12)', resourceEmail: 'c_1881ss10pvkpahgil9qq4b2pooolo@resource.calendar.google.com' },
+];
+
 // List available calendar resources (meeting rooms)
 async function listRooms() {
-  const admin = google.admin({ version: 'directory_v1', auth: getAuthClient() });
-  const res = await admin.resources.calendars.list({
-    customer: 'my_customer',
-  });
-  return res.data.items || [];
+  try {
+    const admin = google.admin({ version: 'directory_v1', auth: getAuthClient() });
+    const res = await admin.resources.calendars.list({ customer: 'my_customer' });
+    return res.data.items || [];
+  } catch {
+    return KNOWN_ROOMS;
+  }
 }
 
 // Block focus time

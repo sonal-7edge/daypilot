@@ -64,7 +64,8 @@ router.post('/log', async (req, res) => {
 
     res.json({ event, durationLabel, jiraKey, account });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const detail = err.response?.data || err.message;
+    res.status(500).json({ error: typeof detail === 'string' ? detail : JSON.stringify(detail) });
   }
 });
 

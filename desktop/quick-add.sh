@@ -78,20 +78,24 @@ p = {
 if '$JIRA_KEY': p['jiraKey'] = '$JIRA_KEY'
 print(json.dumps(p))")
 
-  RESPONSE=$(curl -sf -X POST \
+  RESPONSE=$(curl -s -X POST \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD" \
     "$SERVER/api/focus/log" 2>&1)
   STATUS=$?
 
-  if [ $STATUS -eq 0 ]; then
+  # Check for error field in JSON response
+  IS_ERROR=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print('yes' if 'error' in d else 'no')" 2>/dev/null)
+
+  if [ $STATUS -eq 0 ] && [ "$IS_ERROR" != "yes" ]; then
     yad --info --title="Daypilot" \
       --text="<b>Logged!</b>\nCalendar event created and Tempo worklog updated." \
       --button="OK:0" --center --width=300 --borders=16 --timeout=3
   else
+    ERROR_MSG=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error','Unknown error'))" 2>/dev/null || echo "$RESPONSE")
     yad --error --title="Daypilot \u2014 Error" \
-      --text="Failed to log focus time.\n\n<tt>$RESPONSE</tt>" \
-      --button="OK:0" --center --width=380 --borders=16
+      --text="Failed to log focus time.\n\n<tt>$ERROR_MSG</tt>\n\n<small>Payload: $PAYLOAD</small>" \
+      --button="OK:0" --center --width=420 --borders=16
   fi
   exit 0
 fi

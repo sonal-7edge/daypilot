@@ -12,7 +12,6 @@ const STEPS = [
   { id: 'google',    label: 'Google Cloud' },
   { id: 'atlassian', label: 'Atlassian' },
   { id: 'tempo',     label: 'Tempo' },
-  { id: 'gmail',     label: 'Gmail' },
   { id: 'token',     label: 'Your Token' },
 ]
 
@@ -25,8 +24,6 @@ const EMPTY_FORM = {
   jiraApiToken: '',
   tempoApiToken: '',
   tempoAccountId: '',
-  gmailUser: '',
-  gmailAppPassword: '',
 }
 
 // ── tiny helpers ──────────────────────────────────────────────────────────────
@@ -100,7 +97,7 @@ function StepWelcome({ onNext }) {
         <div className="welcome-logo">⚡</div>
         <h1 className="welcome-title">Daypilot Setup</h1>
         <p className="welcome-sub">
-          Connect your Google Calendar, Jira, Tempo, and Gmail in 5 steps.
+          Connect your Google Calendar, Jira, and Tempo in 4 steps.
           You'll get a personal token to use with the Daypilot MCP server in Claude.
         </p>
       </div>
@@ -110,7 +107,6 @@ function StepWelcome({ onNext }) {
           { icon: '📅', title: 'Google Calendar', desc: 'Create focus blocks and meetings directly from Claude' },
           { icon: '🎯', title: 'Jira', desc: 'Browse sprint cards and link them to time entries' },
           { icon: '⏱', title: 'Tempo', desc: 'Time is logged automatically whenever you create an event' },
-          { icon: '📧', title: 'Gmail', desc: 'Receive timesheet summaries when you submit' },
         ].map(f => (
           <div className="feature-card" key={f.title}>
             <span className="feature-icon">{f.icon}</span>
@@ -272,39 +268,6 @@ function StepTempo({ form, set, onNext, status, setStatus }) {
   )
 }
 
-function StepGmail({ form, set, onNext, status, setStatus }) {
-  function next() {
-    if (!form.gmailUser.trim() || !form.gmailAppPassword.trim()) {
-      setStatus({ type: 'error', message: 'Both fields are required.' })
-      return
-    }
-    setStatus({ type: '' })
-    onNext()
-  }
-
-  return (
-    <div className="step">
-      <h2 className="step-title">Gmail</h2>
-      <p className="step-desc">Daypilot uses Gmail SMTP to send you timesheet summary emails when you submit.</p>
-
-      <div className="callout">
-        <p className="callout-title">How to create a Gmail App Password</p>
-        <ol>
-          <li>Go to <A href="https://myaccount.google.com/security">Google Account → Security</A></li>
-          <li>Under <em>How you sign in</em>, click <strong>2-Step Verification</strong> (must be enabled)</li>
-          <li>Scroll to the bottom → <strong>App passwords</strong></li>
-          <li>App: <strong>Mail</strong>, name it <strong>daypilot</strong> → copy the 16-character password</li>
-        </ol>
-      </div>
-
-      <Field label="Gmail Address" value={form.gmailUser} onChange={v => set('gmailUser', v)} placeholder="you@gmail.com" />
-      <Field label="App Password" type="password" value={form.gmailAppPassword} onChange={v => set('gmailAppPassword', v)} placeholder="xxxx xxxx xxxx xxxx" />
-
-      <StatusBox status={status} />
-      <button className="btn btn-primary" onClick={next}>Generate My Token →</button>
-    </div>
-  )
-}
 
 function StepToken({ form, onRestart }) {
   const token = btoa(JSON.stringify({
@@ -316,8 +279,6 @@ function StepToken({ form, onRestart }) {
     JIRA_API_TOKEN:       form.jiraApiToken,
     TEMPO_API_TOKEN:      form.tempoApiToken,
     TEMPO_ACCOUNT_ID:     form.tempoAccountId,
-    GMAIL_USER:           form.gmailUser,
-    GMAIL_APP_PASSWORD:   form.gmailAppPassword,
   }))
 
   const claudeConfig = JSON.stringify({
@@ -449,7 +410,6 @@ export default function App() {
     <StepGoogle     key="g" {...shared} />,
     <StepAtlassian  key="a" {...shared} />,
     <StepTempo      key="t" {...shared} />,
-    <StepGmail      key="m" {...shared} />,
     <StepToken      key="k" form={form} onRestart={restart} />,
   ]
 

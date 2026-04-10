@@ -1,0 +1,17 @@
+{
+  "name": "daypilot-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Daypilot MCP server — focus time logging via Calendar, Jira, and Tempo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
+  }
+}

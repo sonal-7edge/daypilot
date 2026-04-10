@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
+const { credentialsMiddleware } = require('./middleware/credentials');
 const calendarRoutes = require('./routes/calendar');
 const jiraRoutes = require('./routes/jira');
 const tempoRoutes = require('./routes/tempo');
@@ -13,6 +14,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(credentialsMiddleware);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'daypilot' }));

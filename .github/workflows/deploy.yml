@@ -9,6 +9,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render Deploy
-        run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Deploy daypilot API
+        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+      - name: Deploy daypilot MCP server
+        run: curl -X POST "${{ secrets.RENDER_MCP_DEPLOY_HOOK_URL }}"

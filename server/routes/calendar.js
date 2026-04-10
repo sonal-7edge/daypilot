@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const cal = require('../services/googleCalendar');
-const { getIssue, buildEventDescription } = require('../services/jira');
-const tempo = require('../services/tempo');
+const createCalClient = require('../services/googleCalendar');
+const createJiraClient = require('../services/jira');
+const createTempoClient = require('../services/tempo');
+
 // GET /api/calendar/events?date=2025-04-09
 router.get('/events', async (req, res) => {
   try {
+    const cal = createCalClient(req.creds);
     const date = req.query.date || new Date().toISOString().split('T')[0];
     const timeMin = new Date(`${date}T00:00:00+05:30`).toISOString();
     const timeMax = new Date(`${date}T23:59:59+05:30`).toISOString();
@@ -19,6 +21,7 @@ router.get('/events', async (req, res) => {
 // GET /api/calendar/rooms
 router.get('/rooms', async (req, res) => {
   try {
+    const cal = createCalClient(req.creds);
     const rooms = await cal.listRooms();
     res.json(rooms);
   } catch (err) {
@@ -29,6 +32,7 @@ router.get('/rooms', async (req, res) => {
 // GET /api/calendar/available-rooms?start=...&end=...
 router.get('/available-rooms', async (req, res) => {
   try {
+    const cal = createCalClient(req.creds);
     const { start, end } = req.query;
     const rooms = await cal.getAvailableRooms(start, end);
     res.json(rooms);
@@ -41,20 +45,23 @@ router.get('/available-rooms', async (req, res) => {
 // Body: { title, start, end, attendees, roomResourceEmail, description, jiraKey, account }
 router.post('/event', async (req, res) => {
   try {
+    const cal = createCalClient(req.creds);
+    const jira = createJiraClient(req.creds);
+    const tempo = createTempoClient(req.creds);
+
     let { title, start, end, attendees, roomResourceEmail, description, jiraKey, account } = req.body;
 
     let issue = null;
     if (jiraKey) {
-      issue = await getIssue(jiraKey);
+      issue = await jira.getIssue(jiraKey);
       if (!title) title = `[${issue.key}] ${issue.fields.summary}`;
-      description = buildEventDescription(issue) + (description ? `\n\n${description}` : '');
+      description = jira.buildEventDescription(issue) + (description ? `\n\n${description}` : '');
     }
 
     if (account) description = (description ? description + '\n' : '') + `Account: ${account}`;
 
     const event = await cal.createEvent({ title, description, start, end, attendees, roomResourceEmail });
 
-    // Log to Tempo if jiraKey + account provided
     if (jiraKey && account && issue) {
       const startDate = start.substring(0, 10);
       const startTimePart = start.match(/T(\d{2}:\d{2}:\d{2})/)?.[1] || '09:00:00';
@@ -85,6 +92,7 @@ router.post('/event', async (req, res) => {
 // Body: { title, start, end }
 router.post('/focus', async (req, res) => {
   try {
+    const cal = createCalClient(req.creds);
     const event = await cal.blockFocusTime(req.body);
     res.json(event);
   } catch (err) {
@@ -95,6 +103,7 @@ router.post('/focus', async (req, res) => {
 // PATCH /api/calendar/event/:eventId
 router.patch('/event/:eventId', async (req, res) => {
   try {
+    const cal = createCalClient(req.creds);
     const event = await cal.updateEvent(req.params.eventId, req.body);
     res.json(event);
   } catch (err) {

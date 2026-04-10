@@ -21,7 +21,6 @@ const EMPTY_FORM = {
   googleClientSecret: '',
   googleRefreshToken: '',
   googleCalendarId: 'primary',
-  jiraBaseUrl: '',
   jiraEmail: '',
   jiraApiToken: '',
   tempoApiToken: '',
@@ -193,35 +192,14 @@ function StepGoogle({ form, set, onNext, status, setStatus, loading }) {
   )
 }
 
-function StepAtlassian({ form, set, onNext, status, setStatus, loading, setLoading }) {
-  async function verify() {
-    if (!form.jiraBaseUrl.trim() || !form.jiraEmail.trim() || !form.jiraApiToken.trim()) {
-      setStatus({ type: 'error', message: 'Fill in all three fields.' })
+function StepAtlassian({ form, set, onNext, status, setStatus }) {
+  function next() {
+    if (!form.jiraEmail.trim() || !form.jiraApiToken.trim() || !form.tempoAccountId.trim()) {
+      setStatus({ type: 'error', message: 'All three fields are required.' })
       return
     }
-    setLoading(true)
-    setStatus({ type: 'info', message: 'Connecting to Jira…' })
-    try {
-      const base = form.jiraBaseUrl.trim().replace(/\/$/, '')
-      const res = await fetch(`${base}/rest/api/3/myself`, {
-        headers: {
-          Authorization: 'Basic ' + btoa(`${form.jiraEmail.trim()}:${form.jiraApiToken.trim()}`),
-          Accept: 'application/json',
-        },
-      })
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}))
-        throw new Error(e.message || `HTTP ${res.status}`)
-      }
-      const me = await res.json()
-      set('tempoAccountId', me.accountId)
-      setStatus({ type: 'success', message: `Connected as ${me.displayName} — Account ID saved automatically.` })
-      setTimeout(onNext, 900)
-    } catch (err) {
-      setStatus({ type: 'error', message: `Connection failed: ${err.message}` })
-    } finally {
-      setLoading(false)
-    }
+    setStatus({ type: '' })
+    onNext()
   }
 
   return (
@@ -230,31 +208,42 @@ function StepAtlassian({ form, set, onNext, status, setStatus, loading, setLoadi
       <p className="step-desc">An API token lets Daypilot fetch your sprint cards and link time entries to issues.</p>
 
       <div className="callout">
-        <p className="callout-title">How to generate your API token</p>
+        <p className="callout-title">How to get your credentials</p>
         <ol>
           <li>Go to <A href="https://id.atlassian.com/manage-profile/security/api-tokens">id.atlassian.com → Security → API tokens</A></li>
           <li>Click <strong>Create API token</strong>, name it <strong>daypilot</strong>, and copy it</li>
-          <li>Your Jira URL looks like <code className="code">https://your-org.atlassian.net</code></li>
+          <li>To find your <strong>Account ID</strong> — ask Claude:<br />
+            <code className="code">Ask Claude: "What is my Jira account ID?" using the Atlassian integration</code>
+          </li>
         </ol>
       </div>
 
-      <Field label="Jira Base URL" value={form.jiraBaseUrl} onChange={v => set('jiraBaseUrl', v)} placeholder="https://your-org.atlassian.net" />
+      <div className="status status--info" style={{ marginBottom: 20 }}>
+        <strong>Tip:</strong> Open Claude and use the built-in Atlassian integration to run{' '}
+        <code className="code">atlassianUserInfo</code> — it will give you your Account ID instantly. Copy and paste it below.
+      </div>
+
       <Field label="Atlassian Account Email" value={form.jiraEmail} onChange={v => set('jiraEmail', v)} placeholder="you@company.com" />
       <Field label="API Token" type="password" value={form.jiraApiToken} onChange={v => set('jiraApiToken', v)} placeholder="Paste your token" />
+      <Field
+        label="Account ID"
+        hint="Get this from Claude's Atlassian integration or from your Jira profile URL."
+        value={form.tempoAccountId}
+        onChange={v => set('tempoAccountId', v)}
+        placeholder="5b10a2844c20165700ede21g"
+      />
 
       <StatusBox status={status} />
 
-      <button className="btn btn-primary" onClick={verify} disabled={loading}>
-        {loading ? 'Verifying…' : 'Verify & Continue →'}
-      </button>
+      <button className="btn btn-primary" onClick={next}>Continue →</button>
     </div>
   )
 }
 
 function StepTempo({ form, set, onNext, status, setStatus }) {
   function next() {
-    if (!form.tempoApiToken.trim() || !form.tempoAccountId.trim()) {
-      setStatus({ type: 'error', message: 'Both fields are required.' })
+    if (!form.tempoApiToken.trim()) {
+      setStatus({ type: 'error', message: 'Tempo API token is required.' })
       return
     }
     setStatus({ type: '' })
@@ -276,13 +265,6 @@ function StepTempo({ form, set, onNext, status, setStatus }) {
       </div>
 
       <Field label="Tempo API Token" type="password" value={form.tempoApiToken} onChange={v => set('tempoApiToken', v)} placeholder="Paste your Tempo token" />
-      <Field
-        label="Tempo Account ID"
-        hint="Auto-filled from the previous step. This is your Atlassian account ID — find it at Jira → Profile → copy the ID from the URL."
-        value={form.tempoAccountId}
-        onChange={v => set('tempoAccountId', v)}
-        placeholder="5b10a2844c20165700ede21g"
-      />
 
       <StatusBox status={status} />
       <button className="btn btn-primary" onClick={next}>Continue →</button>

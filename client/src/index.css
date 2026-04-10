@@ -1,61 +1,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  --bg: #0a0a0a;
-  --bg2: #111111;
-  --bg3: #181818;
-  --border: #222222;
-  --border2: #2e2e2e;
-  --text: #f0ede8;
-  --text2: #888880;
-  --text3: #444440;
-  --accent: #c8f060;
-  --accent2: #a0d040;
-  --red: #ff4f4f;
-  --amber: #f0a030;
-  --blue: #60a8f0;
-  --teal: #40d0a0;
-  --font-display: 'Syne', sans-serif;
-  --font-mono: 'DM Mono', monospace;
-  --radius: 8px;
-  --radius-lg: 14px;
-}
-
 html, body, #root {
   height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-button {
-  font-family: var(--font-mono);
-  cursor: pointer;
-  border: none;
-  outline: none;
-}
-
-input, select, textarea {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  background: var(--bg3);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 12px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: var(--accent);
-}
-
-input::placeholder { color: var(--text3); }

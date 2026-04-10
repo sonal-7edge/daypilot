@@ -155,19 +155,49 @@ TITLE=$(echo "$RESULT"     | cut -f2)
 ROOM_NAME=$(echo "$RESULT" | cut -f3)
 MTG_ACCOUNT=$(echo "$RESULT" | cut -f4)
 
-# Step 2: People picker
+# Step 2: People picker — search-based, multi-round
 ATTENDEE_EMAILS=""
-if [ -n "$USERS_JSON" ]; then
-  # Build yad checklist rows: FALSE | Name | Email
-  declare -a YAD_ROWS
-  while IFS='|' read -r name email; do
-    YAD_ROWS+=("FALSE" "$name" "$email")
-  done < <(echo "$USERS_JSON" | python3 -c "
-import sys, json
-for u in json.load(sys.stdin):
-    print(f\"{u['displayName']}|{u['email']}\")" 2>/dev/null)
+ATTENDEE_NAMES=""
 
-  if [ ${#YAD_ROWS[@]} -gt 0 ]; then
+if [ -n "$USERS_JSON" ]; then
+  while true; do
+    # Show search box; display already-added names as context
+    ADDED_LABEL="${ATTENDEE_NAMES:-none}"
+    SEARCH=$(yad \
+      --entry \
+      --title="Daypilot — Add People" \
+      --text="<b>Search attendees</b>\n<small>Added so far: ${ADDED_LABEL}</small>" \
+      --entry-label="Name or email:" \
+      --button="Search:0" \
+      --button="Done ✓:1" \
+      --button="Cancel:2" \
+      --center --width=420 --borders=16 2>/dev/null)
+
+    BTN=$?
+    [ $BTN -eq 1 ] && break          # Done — keep what's selected
+    [ $BTN -eq 2 ] && { ATTENDEE_EMAILS=""; ATTENDEE_NAMES=""; break; }  # Cancel
+
+    # Filter users JSON by search term (name or email, case-insensitive)
+    SAFE_SEARCH=$(echo "$SEARCH" | sed "s/'/'\\\\''/g")
+    declare -a YAD_ROWS=()
+    while IFS='|' read -r name email; do
+      YAD_ROWS+=("FALSE" "$name" "$email")
+    done < <(echo "$USERS_JSON" | python3 -c "
+import sys, json
+q = '${SAFE_SEARCH}'.lower()
+for u in json.load(sys.stdin):
+    name  = u.get('displayName', '')
+    email = u.get('email', '')
+    if not q or q in name.lower() or q in email.lower():
+        print(f'{name}|{email}')" 2>/dev/null)
+
+    if [ ${#YAD_ROWS[@]} -eq 0 ]; then
+      yad --info --title="No results" \
+        --text="No users found matching <b>\"${SEARCH}\"</b>" \
+        --button="Try again:0" --center --width=300 --borders=16 --timeout=3
+      continue
+    fi
+
     SELECTED=$(yad \
       --list \
       --column=":CHK" \
@@ -175,15 +205,37 @@ for u in json.load(sys.stdin):
       --column="Email" \
       --print-column=3 \
       --separator="," \
-      --title="Daypilot Add People" \
-      --text="Select attendees:" \
-      --button="Add:0" \
-      --button="Skip:1" \
-      --center --width=500 --height=420 \
+      --title="Daypilot — Results for \"${SEARCH}\"" \
+      --text="Tick people to add, then click <b>Add Selected</b>:" \
+      --button="Add Selected:0" \
+      --button="← Back:1" \
+      --center --width=500 --height=380 \
       "${YAD_ROWS[@]}" 2>/dev/null)
 
-    [ $? -eq 0 ] && ATTENDEE_EMAILS="$SELECTED"
-  fi
+    [ $? -ne 0 ] && continue   # Back — loop to search again
+
+    # Accumulate emails and display names, skipping duplicates
+    if [ -n "$SELECTED" ]; then
+      IFS=',' read -ra NEW_EMAILS <<< "$SELECTED"
+      for raw_email in "${NEW_EMAILS[@]}"; do
+        email=$(echo "$raw_email" | xargs)   # trim whitespace
+        [ -z "$email" ] && continue
+        [[ "$ATTENDEE_EMAILS" == *"$email"* ]] && continue  # already added
+
+        [ -n "$ATTENDEE_EMAILS" ] && ATTENDEE_EMAILS="${ATTENDEE_EMAILS},${email}" \
+                                  || ATTENDEE_EMAILS="$email"
+
+        dname=$(echo "$USERS_JSON" | python3 -c "
+import sys, json
+for u in json.load(sys.stdin):
+    if u.get('email','') == '${email}':
+        print(u.get('displayName',''))
+        break" 2>/dev/null)
+        [ -n "$ATTENDEE_NAMES" ] && ATTENDEE_NAMES="${ATTENDEE_NAMES}, ${dname}" \
+                                  || ATTENDEE_NAMES="$dname"
+      done
+    fi
+  done
 fi
 
 # Resolve room email
